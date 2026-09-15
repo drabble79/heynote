@@ -6,7 +6,7 @@ import { IMAGE_MIME_TYPES } from "../../common/constants.js"
 import { createImageTag  } from "../image/image-parsing.js"
 import { imageFileUrl, resolveImageUrl } from "../../common/image-url.js"
 import { imageIsSelected, imageState } from "../image/image.js"
-import { serializeToText, serializeToHeynote, serializeToHtml, unserializeFromHeynote } from "./serialize.js"
+import { serializeToText, serializeToHeynote, serializeToHtml, serializeToHtmlWithoutImages, unserializeFromHeynote } from "./serialize.js"
 
 
 function copiedRange(state) {
@@ -40,16 +40,82 @@ function copiedRange(state) {
  * Set up event handlers for the browser's copy & cut events, that will replace block separators with newlines
  */
 export const heynoteCopyCut = (editor) => {
-    let copy, cut
-    copy = cut = async (event, view) => {
+    const copy = (event, view) => {
         event.preventDefault()
-        await copyCut(editor.view, event.type == "cut", editor)
+
+        // A selected image is copied as image data rather than as text. This lives here as well
+        // as in copyCommand() because the web builds leave the copy key to the browser, so the
+        // command never runs and this event is the only entry point.
+        const state = editor.view.state
+        for (const image of state.field(imageState)) {
+            if (imageIsSelected(image, state.selection.main)) {
+                copyImage(image.file).catch((error) => {
+                    console.error("Failed to copy image:", error)
+                })
+                return
+            }
+        }
+
+        if (asyncClipboardAvailable()) {
+            copyCut(editor.view, event.type == "cut", editor)
+        } else {
+            copyCutSync(editor.view, event, event.type == "cut", editor)
+        }
     }
 
     return EditorView.domEventHandlers({
         copy,
-        cut,
+        cut: copy,
     })
+}
+
+/**
+ * navigator.clipboard.write() only exists in a secure context. Served over plain http:// the
+ * whole API is missing, so the copy has to go through the event's own clipboardData instead.
+ */
+function asyncClipboardAvailable() {
+    return typeof navigator?.clipboard?.write === "function"
+}
+
+/**
+ * Fills a copy/cut event's clipboardData directly. Needs no permission and no secure context,
+ * but must complete synchronously — see serializeToHtmlWithoutImages().
+ */
+function copyCutSync(view, event, cut, editor) {
+    const { text, ranges } = copiedRange(view.state)
+
+    event.clipboardData.setData("text/plain", serializeToText(text))
+    event.clipboardData.setData("text/html", serializeToHtmlWithoutImages(text))
+    try {
+        // custom types are browser-internal, which is all we need: this flavour exists so a
+        // Heynote-to-Heynote copy keeps its block delimiters and languages
+        event.clipboardData.setData("web text/heynote", serializeToHeynote(text))
+    } catch (e) {
+        // some browsers reject unknown types; plain text still works
+    }
+
+    if (cut && !view.state.readOnly) {
+        view.dispatch({
+            changes: ranges,
+            scrollIntoView: true,
+            userEvent: "delete.cut",
+        })
+    }
+
+    editor.selectionMarkMode = false
+    if (editor.deselectOnCopy && !cut) {
+        deselect(view)
+    }
+    return true
+}
+
+function deselect(view) {
+    view.dispatch(view.state.update({
+        selection: EditorSelection.create(
+            view.state.selection.ranges.map(r => EditorSelection.cursor(r.head)),
+            view.state.selection.mainIndex,
+        ),
+    }))
 }
 
 const toBlob = (text, type) => new Blob([text], {type:type})
@@ -126,6 +192,12 @@ export function copyCommand(editor) {
                 return true
             }
         }
+        if (!asyncClipboardAvailable()) {
+            // Ask the browser to raise a copy event, which heynoteCopyCut() then fills in. This
+            // is how the emacs bindings and the command palette reach the clipboard when
+            // navigator.clipboard is unavailable.
+            return document.execCommand("copy")
+        }
         return copyCut(view, false, editor)
     }
 }
@@ -135,7 +207,12 @@ export function copyCommand(editor) {
  * @returns CodeMirror command that cuts the current selection to the clipboard
  */
 export function cutCommand(editor) {
-    return (view) => copyCut(view, true, editor)
+    return (view) => {
+        if (!asyncClipboardAvailable()) {
+            return document.execCommand("cut")
+        }
+        return copyCut(view, true, editor)
+    }
 }
 
 /**

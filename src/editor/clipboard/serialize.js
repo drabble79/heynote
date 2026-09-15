@@ -24,6 +24,20 @@ export async function serializeToHtml(text) {
     return newText
 }
 
+/**
+ * Synchronous variant of serializeToHtml, for filling a copy event's clipboardData.
+ *
+ * A DOM copy handler has to set its data before it returns, so there is no opportunity to read
+ * the image files and inline them as data URLs. Images are dropped from this flavour; they still
+ * survive in the "web text/heynote" flavour used for Heynote-to-Heynote copies.
+ */
+export function serializeToHtmlWithoutImages(text) {
+    return text
+        .replaceAll(WIDGET_TAG_REGEX, "")
+        .replaceAll(BLOCK_DELIMITER_REGEX, "\n\n")
+        .replaceAll("\n", "<br>")
+}
+
 export function serializeToHeynote(text) {
     return text
 }

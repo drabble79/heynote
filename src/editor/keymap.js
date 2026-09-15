@@ -86,14 +86,22 @@ export const DEFAULT_KEYMAP = [
     cmd("Mod-Shift-l", "nothing"), // prevent default Electron behavior when selectSelectionMatches doesn't match anything
     //cmd("Mod-Alt-g", "gotoLine"),
 
-    cmd("Mod-c", "copy"),
-    // Mod-v is deliberately left to the browser in the web builds. The paste command reads the
-    // clipboard through navigator.clipboard.read(), which needs a secure context and the
-    // clipboard-read permission — over plain HTTP it doesn't exist at all. Worse, binding an
-    // async command means the key counts as handled the moment it's pressed, so the browser's
-    // own paste is suppressed too and nothing gets pasted. The native paste event carries the
-    // data with it and needs no permission; heynoteDropPaste() handles it.
-    ...(window.heynote.platform.isWebApp ? [] : [cmd("Mod-v", "paste")]),
+    /*
+     * Clipboard keys are left to the browser in the web builds.
+     *
+     * The copy/cut/paste commands go through navigator.clipboard, which only exists in a secure
+     * context — served over plain http:// it is missing entirely. Binding an async command makes
+     * this worse rather than degrading: CodeMirror sees a promise, counts the key as handled and
+     * calls preventDefault(), so the browser never raises its own copy/cut/paste event either and
+     * the key does nothing at all.
+     *
+     * Unbound, the browser raises the real events, which heynoteCopyCut() and heynoteDropPaste()
+     * handle using the data attached to the event. No permission, no secure context needed.
+     */
+    ...(window.heynote.platform.isWebApp ? [] : [
+        cmd("Mod-c", "copy"),
+        cmd("Mod-v", "paste"),
+    ]),
     cmd("Mod-z", "undo"),
     cmd("Mod-Shift-z", "redo"),
     ...(isWindows || isLinux ? [
@@ -193,7 +201,8 @@ export const DEFAULT_KEYMAP = [
 ]
 
 export const DEFAULT_NOT_EMACS_KEYMAP = [
-    cmd("Mod-x", "cut"),
+    // see the clipboard note in DEFAULT_KEYMAP
+    ...(window.heynote.platform.isWebApp ? [] : [cmd("Mod-x", "cut")]),
 ]
 
 export const EMACS_KEYMAP = [
