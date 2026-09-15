@@ -180,6 +180,14 @@
             },
 
             onContextMenu(event) {
+                if (window.heynote.platform.isWebApp) {
+                    // Let the browser show its own menu inside the editor. It offers working
+                    // Cut/Copy/Paste and spellcheck suggestions, none of which a custom HTML menu
+                    // can do — programmatic paste needs a permission prompt, and there is no way
+                    // to reach the spellchecker's suggestions from script. The block commands
+                    // that the native menu adds live in the main menu and command palette.
+                    return
+                }
                 event.preventDefault()
                 window.heynote.mainProcess.invoke("showEditorContextMenu")
             },

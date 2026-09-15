@@ -261,6 +261,10 @@ export function createServer() {
             return
         }
         res.sendFile(fullPath, {
+            // images live in <library>/.images, and sendFile's default dotfiles:"ignore" would
+            // reject the whole path. The file name has already been strictly validated and
+            // confirmed to resolve inside the library.
+            dotfiles: "allow",
             headers: {"Cache-Control": "private, max-age=31536000, immutable"},
         })
     }))

@@ -1,6 +1,7 @@
 <script>
     import { mapState, mapStores } from 'pinia'
     import UpdateStatusItem from './UpdateStatusItem.vue'
+    import SyncStatusItem from './SyncStatusItem.vue'
     import { LANGUAGES } from '../editor/languages.js'
     import { formatDate, formatFullDate } from '../common/format-date'
     import { useHeynoteStore } from "../stores/heynote-store"
@@ -18,6 +19,7 @@
 
         components: {
             UpdateStatusItem,
+            SyncStatusItem,
         },
 
         data() {
@@ -170,6 +172,7 @@
             <span class="icon icon-format" :class="{'pinned': alwaysOnTop}"></span>
         </div>
 
+        <SyncStatusItem />
         <UpdateStatusItem 
             v-if="updatesEnabled" 
             :autoUpdate="autoUpdate"

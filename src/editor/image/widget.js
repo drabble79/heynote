@@ -2,6 +2,7 @@ import { EditorView } from "@codemirror/view"
 import { WidgetType } from "@codemirror/view"
 
 import { copyImage } from "../clipboard/copy-paste.js"
+import { resolveImageUrl } from "../../common/image-url.js"
 import { setImageDisplayDimensions } from "./image-parsing.js"
 import { useHeynoteStore } from "../../stores/heynote-store.js"
 
@@ -108,7 +109,7 @@ export class ImageWidget extends WidgetType {
         })
         
         let img = document.createElement("img")
-        img.src = this.path
+        img.src = resolveImageUrl(this.path)
         img.style.height = this.getHeight(img)
         img.style.width = this.getWidth(img)
         inner.appendChild(img)
@@ -224,7 +225,7 @@ export class ImageWidget extends WidgetType {
         //console.log("updateDOM:", dom, this.selected, this.height)
         dom.className = this.getClassName()
         const img = dom.querySelector("img")
-        img.src = this.path
+        img.src = resolveImageUrl(this.path)
         img.style.height = this.getHeight(img)
         img.style.width = this.getWidth(img)
         return true

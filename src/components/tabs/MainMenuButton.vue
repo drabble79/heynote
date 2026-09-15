@@ -1,6 +1,8 @@
 <script>
     import { mapState } from 'pinia'
     import { useHeynoteStore } from "@/src/stores/heynote-store"
+    import { useContextMenuStore } from "@/src/stores/context-menu-store"
+    import { OPEN_SETTINGS_EVENT } from "@/src/common/constants"
 
     export default {
         computed: {
@@ -10,9 +12,30 @@
         },
         methods: {
             onMainMenuClick(event) {
-                const x = event.target.offsetLeft
-                const y = event.target.offsetTop + event.target.offsetHeight
-                window.heynote.mainProcess.invoke("showMainMenu", x, y)
+                if (!window.heynote.platform.isWebApp) {
+                    const x = event.target.offsetLeft
+                    const y = event.target.offsetTop + event.target.offsetHeight
+                    window.heynote.mainProcess.invoke("showMainMenu", x, y)
+                    return
+                }
+
+                // The web build has no application menu bar, so this button carries the
+                // entries from electron/main/menu.js that still make sense in a browser.
+                // Window/zoom/quit roles and the separate About window are dropped.
+                const store = useHeynoteStore()
+                const editor = () => window._heynote_editor
+                const rect = event.currentTarget.getBoundingClientRect()
+                useContextMenuStore().open({clientX: rect.left, clientY: rect.bottom}, [
+                    {label: "New Buffer…", action: () => store.openCreateBuffer()},
+                    {label: "Open Buffer…", action: () => store.openBufferSelector()},
+                    {label: "Move block to another buffer…", action: () => store.openMoveToBufferSelector()},
+                    {separator: true},
+                    {label: "Command Palette…", action: () => store.openCommandPalette()},
+                    {label: "Change block language…", action: () => store.openLanguageSelector()},
+                    {label: "Delete block", action: () => editor()?.deleteActiveBlock()},
+                    {separator: true},
+                    {label: "Settings", action: () => window.ipcRenderer?.send(OPEN_SETTINGS_EVENT)},
+                ])
             },
         },
     }
@@ -57,7 +80,4 @@
                 display: none
         +platform-mac-fullscreen
             width: 16px
-        +platform-webapp
-            button
-                display: none
 </style>

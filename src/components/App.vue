@@ -11,6 +11,7 @@
 
     import { OPEN_SETTINGS_EVENT, MOVE_BLOCK_EVENT, CHANGE_BUFFER_EVENT } from '@/src/common/constants'
     import { setImageFile } from "@/src/editor/image/image-parsing.js"
+    import { imageFileUrl } from "@/src/common/image-url.js"
 
     import StatusBar from './StatusBar.vue'
     import Editor from './Editor.vue'
@@ -19,6 +20,7 @@
     import Settings from './settings/Settings.vue'
     import ErrorMessages from './ErrorMessages.vue'
     import SyncConflictDialog from './SyncConflictDialog.vue'
+    import ContextMenu from './ContextMenu.vue'
     import NewBuffer from './NewBuffer.vue'
     import EditBuffer from './EditBuffer.vue'
     import TabBar from './tabs/TabBar.vue'
@@ -34,6 +36,7 @@
             BufferSelector,
             ErrorMessages,
             SyncConflictDialog,
+            ContextMenu,
             NewBuffer,
             EditBuffer,
             TabBar,
@@ -273,7 +276,7 @@
                         console.error("Failed to save image data")
                         return
                     }
-                    const imageUrl = "heynote-file://image/" + encodeURIComponent(filename)
+                    const imageUrl = imageFileUrl(filename)
                     setImageFile(editor.view, imageId, imageUrl)
                 } catch (error) {
                     console.error("Failed to save drawn image", error)
@@ -369,6 +372,7 @@
             />
             <ErrorMessages />
             <SyncConflictDialog />
+            <ContextMenu />
         </div>
     </div>
 </template>

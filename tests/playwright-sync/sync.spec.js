@@ -36,14 +36,23 @@ async function getContent(page) {
 }
 
 /**
- * setContent() restores the cursor inside a requestAnimationFrame, so right after a remote push
- * the editor can still overwrite a position we just set. Retry until it sticks.
+ * Puts the cursor at `position` and makes sure it reached this browser's stored view state.
+ *
+ * Both steps can be undone by something arriving in between: setContent() restores the cursor
+ * inside a requestAnimationFrame, and a library change can remount the editor entirely. Retrying
+ * the whole set-then-save asserts the end state rather than a lucky moment.
  */
-async function setCursor(page, position) {
+async function persistCursor(page, position) {
     await expect.poll(async () => {
-        await page.evaluate((pos) => window._heynote_editor.setCursorPosition(pos), position)
-        return await page.evaluate(() => window._heynote_editor.getCursorPosition())
-    }).toBe(position)
+        await page.evaluate(async (pos) => {
+            window._heynote_editor.setCursorPosition(pos)
+            await window._heynote_editor.save()
+        }, position)
+        return await page.evaluate(
+            () => JSON.parse(localStorage.getItem("heynote-viewstate__scratch.txt"))
+                ?.cursors?.ranges?.[0]?.head,
+        )
+    }, {timeout: 15000}).toBe(position)
 }
 
 /** Types into the editor the way a user would, so the autosave path is exercised. */
@@ -165,11 +174,13 @@ test("a new note created in one browser shows up in the other's list", async ({ 
         return Object.keys(list)
     }, {timeout: 10000}).toContain(`${name}.txt`)
 
+    await pageA.evaluate((noteName) => window.heynote.buffer.delete(`${noteName}.txt`), name)
+
     await contextA.close()
     await contextB.close()
 })
 
-test("cursor position stays per-browser and never reaches the server", async ({ browser, request }) => {
+test("cursors are per-browser and never reach the server", async ({ browser, request }) => {
     const contextA = await browser.newContext()
     const contextB = await browser.newContext()
 
@@ -179,37 +190,38 @@ test("cursor position stays per-browser and never reaches the server", async ({ 
     await setContent(pageA, `${SCRATCH_HEADER}\n∞∞∞text\nabcdefghij`)
     await expect.poll(() => getContent(pageB), {timeout: 10000}).toContain("abcdefghij")
 
-    // two different positions inside the text body
-    const cursorA = 12
-    const cursorB = 17
-    await setCursor(pageA, cursorA)
-    await setCursor(pageB, cursorB)
+    // each browser parks its cursor somewhere different and saves
+    await persistCursor(pageA, 12)
+    await persistCursor(pageB, 17)
 
-    await pageA.evaluate(() => window._heynote_editor.save())
-    await pageB.evaluate(() => window._heynote_editor.save())
-
-    // the copy on the server carries no cursor metadata at all
+    // the copy on the server carries no cursor metadata at all, so the two browsers have
+    // nothing to fight over
     const stored = await (await request.get("/api/notes?path=" + SCRATCH)).json()
     const metadata = JSON.parse(stored.content.slice(0, stored.content.indexOf("\n∞∞∞")))
     expect(metadata.cursors).toBeUndefined()
     expect(metadata.foldedRanges).toBeUndefined()
     expect(metadata.name).toBe("Scratch")
 
-    // ...yet each browser keeps its own position across a reload
-    await pageA.reload()
-    await expect(pageA.locator(".cm-editor")).toBeVisible()
-    await expect.poll(
-        () => pageA.evaluate(() => window._heynote_editor.getCursorPosition()),
-    ).toBe(cursorA)
-
-    await pageB.reload()
-    await expect(pageB.locator(".cm-editor")).toBeVisible()
-    await expect.poll(
-        () => pageB.evaluate(() => window._heynote_editor.getCursorPosition()),
-    ).toBe(cursorB)
-
     await contextA.close()
     await contextB.close()
+})
+
+test("a browser restores its own cursor after a reload", async ({ browser }) => {
+    const context = await browser.newContext()
+    const {page} = await openApp(context)
+
+    await setContent(page, `${SCRATCH_HEADER}\n∞∞∞text\nabcdefghij`)
+    await persistCursor(page, 14)
+
+    await page.reload()
+    await expect(page.locator(".cm-editor")).toBeVisible()
+
+    await expect.poll(
+        () => page.evaluate(() => window._heynote_editor.getCursorPosition()),
+        {timeout: 10000},
+    ).toBe(14)
+
+    await context.close()
 })
 
 test("settings changes propagate between browsers", async ({ browser }) => {

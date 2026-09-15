@@ -104,7 +104,9 @@ export class SyncHub {
         state.search = null
         try {
             state.search = startLibrarySearch(this.library, options, (payload) => {
-                this._send(ws, {type: `search:${payload.type}`, ...payload})
+                // the spread has to come first: payload carries its own `type` ("match", "done",
+                // ...) which would otherwise overwrite the channel name the client routes on
+                this._send(ws, {...payload, type: `search:${payload.type}`})
             })
         } catch (error) {
             this._send(ws, {

@@ -113,6 +113,8 @@ test("open command palette", async ({page}) => {
     await expect(page.locator("css=.note-selector .items > li.selected")).toBeVisible()
     await page.locator("body").pressSequentially("create new")
     await expect(page.locator("css=.note-selector .items > li.selected .name")).toHaveText("Buffer: Create new buffer…")
-    await expect(page.locator("css=.note-selector .items > li.selected .bindings .binding")).toBeVisible()
+    // a command can have more than one binding: the web builds add alternatives for the
+    // shortcuts browsers reserve for themselves (see src/editor/keymap.js)
+    await expect(page.locator("css=.note-selector .items > li.selected .bindings .binding").first()).toBeVisible()
     await page.locator("body").press("Escape")
 })

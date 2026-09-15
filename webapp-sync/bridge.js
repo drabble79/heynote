@@ -12,7 +12,14 @@ import { DEVICE_LOCAL_SETTINGS, getDefaultSettings } from "@/src/common/default-
 
 import { ApiError, apiFetch, ConflictError, encodeQuery, getClientId, OfflineError } from "./api.js"
 import { MERGE_CLEAN, mergeNoteContent } from "./merge.js"
-import { SYNC_CONFLICT_EVENT, SYNC_STATUS_EVENT } from "./events.js"
+import {
+    SYNC_CONFLICT_EVENT,
+    SYNC_STATUS_ERROR,
+    SYNC_STATUS_EVENT,
+    SYNC_STATUS_OFFLINE,
+    SYNC_STATUS_SYNCED,
+} from "./events.js"
+
 import {
     deleteViewState,
     loadViewState,
@@ -21,6 +28,10 @@ import {
     saveViewState,
     splitViewState,
 } from "./view-state.js"
+
+/** Backoff bounds for retrying saves that failed because the server was unreachable. */
+const RETRY_BASE_MS = 2000
+const RETRY_MAX_MS = 30000
 
 /**
  * The server-synced implementation of the `window.heynote` interface.
@@ -124,6 +135,80 @@ export function createBridge(boot) {
     let themeCallback = null
     let sync = null
 
+    /**
+     * Saves that failed because the server was unreachable, keyed by path so a later edit
+     * supersedes an earlier one. Without this a save lost to a dropped connection would be
+     * silently discarded: HeynoteEditor marks the buffer clean as soon as it hands the content
+     * over, so nothing would ever retry it.
+     */
+    const pendingSaves = new Map()
+    let retryTimer = null
+    let retryDelay = RETRY_BASE_MS
+
+    function reportStatus(status, extra = {}) {
+        ipcRenderer.send(SYNC_STATUS_EVENT, {status, pending: pendingSaves.size, ...extra})
+    }
+
+    function queueRetry(path, content) {
+        pendingSaves.set(path, content)
+        reportStatus(SYNC_STATUS_OFFLINE)
+        scheduleRetry()
+    }
+
+    function scheduleRetry() {
+        if (retryTimer || pendingSaves.size === 0) {
+            return
+        }
+        retryTimer = setTimeout(async () => {
+            retryTimer = null
+            const entries = [...pendingSaves.entries()]
+            let recovered = true
+            for (const [path, content] of entries) {
+                try {
+                    await sendSave(path, content, {retrying: true})
+                    pendingSaves.delete(path)
+                } catch (error) {
+                    if (error instanceof OfflineError) {
+                        recovered = false
+                        break
+                    }
+                    // a real server error won't fix itself by retrying the same bytes
+                    pendingSaves.delete(path)
+                    reportStatus(SYNC_STATUS_ERROR, {message: error.message})
+                }
+            }
+            if (pendingSaves.size === 0 && recovered) {
+                retryDelay = RETRY_BASE_MS
+                reportStatus(SYNC_STATUS_SYNCED)
+                return
+            }
+            retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS)
+            scheduleRetry()
+        }, retryDelay)
+    }
+
+    /** The actual write, shared by the normal path and the retry loop. */
+    async function sendSave(path, shared, {retrying = false} = {}) {
+        const baseVersion = versions.get(path) ?? null
+        try {
+            const result = await apiFetch("/notes", {
+                method: "PUT",
+                body: {path, content: shared, baseVersion},
+            })
+            versions.set(path, result.version)
+            baseContents.set(path, shared)
+            if (!retrying) {
+                reportStatus(SYNC_STATUS_SYNCED)
+            }
+        } catch (error) {
+            if (error instanceof ConflictError) {
+                await resolveConflict(path, shared, error)
+                return
+            }
+            throw error
+        }
+    }
+
     const onChangeCallbacks = {}
     const libraryChangeCallbacks = []
 
@@ -199,19 +284,15 @@ export function createBridge(boot) {
                 return
             }
 
-            const baseVersion = versions.get(path) ?? null
             try {
-                const result = await apiFetch("/notes", {
-                    method: "PUT",
-                    body: {path, content: shared, baseVersion},
-                })
-                versions.set(path, result.version)
-                baseContents.set(path, shared)
+                await sendSave(path, shared)
+                pendingSaves.delete(path)
             } catch (error) {
-                if (error instanceof ConflictError) {
-                    await resolveConflict(path, shared, error)
+                if (error instanceof OfflineError) {
+                    queueRetry(path, shared)
                     return
                 }
+                reportStatus(SYNC_STATUS_ERROR, {message: error.message})
                 throw error
             }
         },
@@ -286,6 +367,10 @@ export function createBridge(boot) {
          */
         async saveAndQuit(contents) {
             const payload = []
+            // anything still waiting to be retried has to go out now or it's lost
+            for (const [path, content] of pendingSaves) {
+                payload.push([path, content])
+            }
             for (const [path, content] of contents) {
                 const {shared, viewState} = splitViewState(content)
                 saveViewState(path, viewState)

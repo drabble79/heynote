@@ -2,6 +2,7 @@ import { EditorView } from "@codemirror/view"
 import { EditorSelection } from "@codemirror/state"
 
 import { createImageTag } from "../image/image-parsing.js"
+import { imageFileUrl } from "../../common/image-url.js"
 
 const MAX_DISPLAY_HEIGHT = 200
 
@@ -36,7 +37,7 @@ const buildImageTagFromFile = async (file) => {
 
     const image = {
         id: crypto.randomUUID(),
-        file: "heynote-file://image/" + encodeURIComponent(filename),
+        file: imageFileUrl(filename),
         width,
         height,
     }

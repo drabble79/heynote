@@ -1,11 +1,22 @@
 {
     "name": "Heynote",
     "short_name": "Heynote",
+    "description": "A dedicated scratch pad",
+    "start_url": "/",
+    "scope": "/",
     "icons": [
+        {
+            "src": "/icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
         {
             "src": "/icon.ico",
             "sizes": "256x256"
         }
     ],
+    "theme_color": "#262b37",
+    "background_color": "#262b37",
     "display": "standalone"
 }

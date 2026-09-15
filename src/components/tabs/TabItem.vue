@@ -2,6 +2,8 @@
     import { mapStores, mapState } from 'pinia'
 
     import { useHeynoteStore } from "@/src/stores/heynote-store"
+    import { useContextMenuStore } from "@/src/stores/context-menu-store"
+    import { SCRATCH_FILE_NAME } from "@/src/common/constants"
 
     export default {
         name: 'TabItem',
@@ -70,7 +72,48 @@
 
             onContextMenu(event) {
                 event.preventDefault()
-                window.heynote.mainProcess.invoke('showTabContextMenu', this.path)
+                if (!window.heynote.platform.isWebApp) {
+                    window.heynote.mainProcess.invoke('showTabContextMenu', this.path)
+                    return
+                }
+                // mirrors getTabContextMenu() in electron/main/menu.js
+                const store = useHeynoteStore()
+                const path = this.path
+                const items = []
+                if (path === SCRATCH_FILE_NAME) {
+                    items.push({
+                        label: "Archive...",
+                        action: () => store.openArchiveScratchDialog(),
+                    })
+                } else {
+                    items.push(
+                        {label: "Edit Buffer…", action: () => store.editBufferMetadata(path)},
+                        {label: "Delete Buffer", action: () => this.confirmDelete(path)},
+                    )
+                }
+                items.push(
+                    {label: "Open Buffer…", action: () => store.openBufferSelector()},
+                    {
+                        label: "New Buffer…",
+                        action: () => store.openCreateBuffer("new", "", this.parentDirectory(path)),
+                    },
+                    {separator: true},
+                    {label: "Close Tab", action: () => store.closeTab(path)},
+                )
+                useContextMenuStore().open(event, items)
+            },
+
+            parentDirectory(path) {
+                const separator = window.heynote.buffer.pathSeparator
+                const parts = path.split(separator)
+                return parts.slice(0, -1).join(separator)
+            },
+
+            confirmDelete(path) {
+                const store = useHeynoteStore()
+                if (confirm(`Are you sure you want to delete the buffer "${store.getBufferTitle(path)}"?`)) {
+                    store.deleteBuffer(path)
+                }
             },
         },
     }

@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view"
 import { IMAGE_MIME_TYPES } from "../../common/constants.js"
 
 import { createImageTag  } from "../image/image-parsing.js"
+import { imageFileUrl, resolveImageUrl } from "../../common/image-url.js"
 import { imageIsSelected, imageState } from "../image/image.js"
 import { serializeToText, serializeToHeynote, serializeToHtml, unserializeFromHeynote } from "./serialize.js"
 
@@ -198,7 +199,7 @@ export async function pasteCommand(/** @type {EditorView} */view) {
                     if (filename) {
                         const image = {
                             id: crypto.randomUUID(),
-                            file: "heynote-file://image/" + encodeURIComponent(filename),
+                            file: imageFileUrl(filename),
                             width: width,
                             height: height,
                         }
@@ -241,7 +242,9 @@ export async function pasteCommand(/** @type {EditorView} */view) {
 
 
 export async function copyImage(url) {
-    const res = await fetch(url, { mode: "cors" })
+    // callers pass either the URL stored in the note (heynote-file://) or an already-resolved
+    // one from an <img>; resolveImageUrl() leaves the latter alone
+    const res = await fetch(resolveImageUrl(url), { mode: "cors" })
     if (!res.ok) {
         throw new Error(`Fetch failed: ${res.status}`)
     }

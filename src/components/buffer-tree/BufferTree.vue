@@ -3,6 +3,7 @@
     import { SCRATCH_FILE_NAME } from "@/src/common/constants"
     import { useHeynoteStore } from "@/src/stores/heynote-store"
     import { useSettingsStore } from "@/src/stores/settings-store"
+    import { useContextMenuStore } from "@/src/stores/context-menu-store"
     import NewFolderItem from "../folder-selector/NewFolderItem.vue"
 
     const pathSep = window.heynote.buffer.pathSeparator
@@ -420,13 +421,14 @@
             },
 
             onItemContextMenu(item, event) {
-                if (window.heynote.platform.isWebApp) {
-                    return
-                }
                 event.preventDefault()
                 this.lastContextMenuItem = {
                     type: item.type,
                     path: item.path,
+                }
+                if (window.heynote.platform.isWebApp) {
+                    this.openWebItemContextMenu(item, event)
+                    return
                 }
                 if (item.type === "buffer") {
                     window.heynote.mainProcess.invoke("showBufferTreeContextMenu", item.path)
@@ -435,10 +437,78 @@
                 }
             },
 
-            onBackgroundContextMenu(event) {
-                if (window.heynote.platform.isWebApp) {
+            // mirrors getBufferTreeContextMenu() / getBufferTreeDirectoryContextMenu()
+            // in electron/main/menu.js
+            async openWebItemContextMenu(item, event) {
+                const heynoteStore = useHeynoteStore()
+                const menu = useContextMenuStore()
+
+                if (item.type === "folder") {
+                    let isEmpty = false
+                    try {
+                        isEmpty = await window.heynote.buffer.isDirectoryEmpty(item.path)
+                    } catch (error) {
+                        console.error("Failed to check if directory is empty:", error)
+                    }
+                    menu.open(event, [
+                        {
+                            label: "New Buffer…",
+                            action: () => heynoteStore.openCreateBuffer("new", "", item.path || ""),
+                        },
+                        {
+                            label: "New Folder…",
+                            action: () => this.onCreateFolderRequested(null, item.path || ""),
+                        },
+                        {
+                            label: "Delete Folder",
+                            enabled: isEmpty,
+                            action: () => this.deleteDirectory(item.path).catch((error) => {
+                                console.error("Failed to delete directory:", item.path, error)
+                            }),
+                        },
+                    ])
                     return
                 }
+
+                const parentDirectory = item.path.split(pathSep).slice(0, -1).join(pathSep)
+                const items = []
+                if (item.path === SCRATCH_FILE_NAME) {
+                    items.push({
+                        label: "Archive...",
+                        action: () => heynoteStore.openArchiveScratchDialog(),
+                    })
+                } else {
+                    items.push(
+                        {
+                            label: "Edit Buffer…",
+                            action: () => heynoteStore.editBufferMetadata(item.path),
+                        },
+                        {
+                            label: "Delete Buffer",
+                            action: () => {
+                                const title = heynoteStore.getBufferTitle(item.path)
+                                if (confirm(`Are you sure you want to delete the buffer "${title}"?`)) {
+                                    heynoteStore.deleteBuffer(item.path)
+                                }
+                            },
+                        },
+                    )
+                }
+                items.push(
+                    {separator: true},
+                    {
+                        label: "New Buffer…",
+                        action: () => heynoteStore.openCreateBuffer("new", "", parentDirectory),
+                    },
+                    {
+                        label: "New Folder…",
+                        action: () => this.onCreateFolderRequested(null, parentDirectory),
+                    },
+                )
+                menu.open(event, items)
+            },
+
+            onBackgroundContextMenu(event) {
                 if (event.target.closest(".item") || event.target.closest("input")) {
                     return
                 }
@@ -446,6 +516,21 @@
                 // For root-level "New Folder..." from empty-space context menu, place input at top or bottom.
                 this.backgroundNewFolderPosition = this.getBackgroundInsertPosition(event.clientY)
                 this.lastContextMenuItem = null
+                if (window.heynote.platform.isWebApp) {
+                    // mirrors getBufferTreeBackgroundContextMenu() in electron/main/menu.js
+                    const heynoteStore = useHeynoteStore()
+                    useContextMenuStore().open(event, [
+                        {
+                            label: "New Buffer…",
+                            action: () => heynoteStore.openCreateBuffer("new", "", ""),
+                        },
+                        {
+                            label: "New Folder…",
+                            action: () => this.onCreateFolderRequested(null, ""),
+                        },
+                    ])
+                    return
+                }
                 window.heynote.mainProcess.invoke("showBufferTreeBackgroundContextMenu")
             },
 

@@ -29,6 +29,9 @@ export class ConflictError extends Error {
     }
 }
 
+/** Coalesces bursts of filesystem events (an atomic save is several) into one check. */
+const LIBRARY_CHECK_DEBOUNCE_MS = 200
+
 export function versionOf(content) {
     return createHash("sha256").update(content, "utf8").digest("hex")
 }
@@ -57,9 +60,12 @@ export class SyncLibrary {
                 onNoteChanged?.(path, content, versionOf(content))
             },
             onLibraryChange: () => {
-                onLibraryChanged?.()
+                this._scheduleLibraryCheck()
             },
         })
+        this._onLibraryChanged = onLibraryChanged
+        this._librarySignature = null
+        this._libraryCheckTimer = null
         this.basePath = this.library.basePath
         this.imagesBasePath = this.library.imagesBasePath
 
@@ -67,6 +73,53 @@ export class SyncLibrary {
         this._locks = new Map()
 
         this.library.setupWatcher()
+    }
+
+    /**
+     * The filesystem watcher fires for *any* write under the library, including every note save
+     * and every uploaded image. Telling clients the library changed on each of those would make
+     * them reload and remount their editors constantly, so we only notify when the set of notes,
+     * their names/tags, or the directories actually differ.
+     */
+    _scheduleLibraryCheck() {
+        if (this._libraryCheckTimer) {
+            return
+        }
+        this._libraryCheckTimer = setTimeout(() => {
+            this._libraryCheckTimer = null
+            this._checkLibraryChanged().catch((error) => {
+                console.error("Failed to check the library for changes:", error)
+            })
+        }, LIBRARY_CHECK_DEBOUNCE_MS)
+        this._libraryCheckTimer.unref?.()
+    }
+
+    async _librarySignatureNow() {
+        const [notes, directories] = await Promise.all([
+            this.library.getList(),
+            this.library.getDirectoryList(),
+        ])
+        const noteEntries = Object.entries(notes)
+            .map(([path, metadata]) => [path, metadata?.name ?? null, metadata?.tags ?? null])
+            .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        return JSON.stringify([noteEntries, [...directories].sort()])
+    }
+
+    async _checkLibraryChanged() {
+        const signature = await this._librarySignatureNow()
+        if (this._librarySignature === null) {
+            this._librarySignature = signature
+            return
+        }
+        if (signature !== this._librarySignature) {
+            this._librarySignature = signature
+            this._onLibraryChanged?.()
+        }
+    }
+
+    /** Called after this process changes the library itself, to keep the signature current. */
+    async refreshLibrarySignature() {
+        this._librarySignature = await this._librarySignatureNow()
     }
 
     /**
@@ -140,6 +193,7 @@ export class SyncLibrary {
             throw httpError(`File already exists: ${path}`, 409)
         }
         await this.library.create(path, content)
+        await this.refreshLibrarySignature()
         return {version: versionOf(content)}
     }
 
@@ -153,6 +207,7 @@ export class SyncLibrary {
         }
         await this.library.delete(path)
         this.library.closeFile(path)
+        await this.refreshLibrarySignature()
     }
 
     async move(path, newPath) {
@@ -166,11 +221,13 @@ export class SyncLibrary {
         }
         await this.library.move(path, newPath)
         this.library.closeFile(path)
+        await this.refreshLibrarySignature()
     }
 
     async createDirectory(path) {
         this._assertSafe(path)
         await this.library.createDirectory(path)
+        await this.refreshLibrarySignature()
     }
 
     async deleteDirectory(path) {
@@ -182,6 +239,7 @@ export class SyncLibrary {
             throw httpError(`Directory is not empty: ${path}`, 409)
         }
         await this.library.deleteDirectory(path)
+        await this.refreshLibrarySignature()
     }
 
     async isDirectoryEmpty(path) {
@@ -220,6 +278,8 @@ export class SyncLibrary {
     }
 
     close() {
+        clearTimeout(this._libraryCheckTimer)
+        this._libraryCheckTimer = null
         this.library.close()
     }
 }

@@ -158,6 +158,32 @@ export const DEFAULT_KEYMAP = [
     - Mod-Alt-g: [`gotoLine`](https://codemirror.net/6/docs/ref/#search.gotoLine)
     - Mod-d: [`selectNextOccurrence`](https://codemirror.net/6/docs/ref/#search.selectNextOccurrence)
     */
+
+    /*
+     * Alternatives for the shortcuts a browser keeps for itself.
+     *
+     * Cmd/Ctrl + N, T, W, Shift-T and Ctrl-Tab never reach the page in a normal browser tab, so
+     * the tab and buffer commands bound to them above are unreachable in the web build. These
+     * extra bindings are *added* rather than substituted: when Heynote is installed as a PWA (or
+     * running in Electron) the originals work, and these keep working either way.
+     */
+    ...(window.heynote.platform.isWebApp ? [
+        cmd("Alt-n", "openCreateNewBuffer"),
+        cmd("Alt-w", "closeCurrentTab"),
+        cmd("Alt-Shift-t", "reopenLastClosedTab"),
+        cmd("Mod-Alt-ArrowRight", "nextTab"),
+        cmd("Mod-Alt-ArrowLeft", "previousTab"),
+        cmd("Mod-Alt-1", "switchToTab1"),
+        cmd("Mod-Alt-2", "switchToTab2"),
+        cmd("Mod-Alt-3", "switchToTab3"),
+        cmd("Mod-Alt-4", "switchToTab4"),
+        cmd("Mod-Alt-5", "switchToTab5"),
+        cmd("Mod-Alt-6", "switchToTab6"),
+        cmd("Mod-Alt-7", "switchToTab7"),
+        cmd("Mod-Alt-8", "switchToTab8"),
+        cmd("Mod-Alt-9", "switchToTab9"),
+        cmd("Mod-Alt-0", "switchToLastTab"),
+    ] : []),
 ]
 
 export const DEFAULT_NOT_EMACS_KEYMAP = [
