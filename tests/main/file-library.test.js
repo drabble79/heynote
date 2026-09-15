@@ -21,12 +21,12 @@ const getImgReferencesMock = vi.fn(async () => [])
 const loadFileLibrary = async ({ mockRipgrep = false } = {}) => {
     vi.resetModules()
     if (mockRipgrep) {
-        vi.doMock("../../electron/main/ripgrep.js", () => ({
+        vi.doMock("../../shared-node/ripgrep.js", () => ({
             searchLibrary: vi.fn(),
             getImgReferences: (...args) => getImgReferencesMock(...args),
         }))
     } else {
-        vi.unmock("../../electron/main/ripgrep.js")
+        vi.unmock("../../shared-node/ripgrep.js")
     }
     return await import("../../electron/main/file-library.js")
 }

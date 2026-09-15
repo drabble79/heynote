@@ -2,6 +2,7 @@ node_modules
 bundle.js
 dist
 dist-electron
+dist-server
 release
 .env
 /test-results/

@@ -4,7 +4,6 @@ import {
     SAVE_TABS_STATE,
     LOAD_TABS_STATE,
     WINDOW_CLOSE_EVENT,
-    DEFAULT_LEFT_PANEL_WIDTH,
     LIBRARY_SEARCH_CANCEL,
     LIBRARY_SEARCH_DONE,
     LIBRARY_SEARCH_ERROR,
@@ -12,6 +11,7 @@ import {
     LIBRARY_SEARCH_START,
 } from "@/src/common/constants";
 import { generateClientId, TEST_CLIENT_ID } from "@/src/common/client-id";
+import { getDefaultSettings } from "@/src/common/default-settings";
 import { CURRENCY_RATES_URL, getCurrencyFetchOptions } from "@/src/common/currency-request";
 import { normalizeLibrarySearchMatch } from "@/src/common/library-search-match";
 import { isLibrarySearchQueryLongEnough } from "@/src/common/library-search-query.js";
@@ -114,26 +114,7 @@ const ipcRenderer = new IpcRenderer()
 
 // get initial settings
 let settingsData = localStorage.getItem("settings")
-let initialSettings = {
-    keymap: "default",
-    emacsMetaKey: "alt",
-    showLineNumberGutter: true,
-    showFoldGutter: true,
-    bufferTreeOpenFolders: [],
-    bracketClosing: false,
-    keyBindings: [],
-    showTabs: true,
-    showTabsInFullscreen: true,
-    leftPanelWidth: DEFAULT_LEFT_PANEL_WIDTH,
-    startHidden: false,
-    colorPreviewEnabled: true,
-    cursorBlinkRate: 1000,
-    librarySearchSettings: {
-        caseSensitive: false,
-        wholeWord: false,
-        regexp: false,
-    },
-}
+let initialSettings = getDefaultSettings({isMac: platform.isMac})
 if (settingsData !== null) {
     initialSettings = Object.assign(initialSettings, JSON.parse(settingsData))
 }

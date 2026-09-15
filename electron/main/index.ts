@@ -24,7 +24,7 @@ import {
     NOTES_DIR_NAME 
 } from './file-library';
 import { registerProtocol, registerProtocolBeforeAppReady } from "./protocol.js"
-import { startLibrarySearch } from "./ripgrep.js"
+import { startLibrarySearch } from "../../shared-node/ripgrep.js"
 
 
 // The built directory structure

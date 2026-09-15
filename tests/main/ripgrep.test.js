@@ -4,7 +4,7 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { startLibrarySearch } from "../../electron/main/ripgrep.js"
+import { startLibrarySearch } from "../../shared-node/ripgrep.js"
 
 const makeTempDir = () =>
     fs.mkdtempSync(path.join(os.tmpdir(), "heynote-ripgrep-"))
