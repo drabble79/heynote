@@ -18,6 +18,7 @@
     import BufferSelector from './BufferSelector.vue'
     import Settings from './settings/Settings.vue'
     import ErrorMessages from './ErrorMessages.vue'
+    import SyncConflictDialog from './SyncConflictDialog.vue'
     import NewBuffer from './NewBuffer.vue'
     import EditBuffer from './EditBuffer.vue'
     import TabBar from './tabs/TabBar.vue'
@@ -32,6 +33,7 @@
             Settings,
             BufferSelector,
             ErrorMessages,
+            SyncConflictDialog,
             NewBuffer,
             EditBuffer,
             TabBar,
@@ -366,6 +368,7 @@
                 @save="onSaveDrawImage"
             />
             <ErrorMessages />
+            <SyncConflictDialog />
         </div>
     </div>
 </template>

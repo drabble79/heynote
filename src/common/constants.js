@@ -19,6 +19,18 @@ export const LOAD_TABS_STATE = "load-tabs-state"
 export const CONTEXT_MENU_CLOSED = "context-menu-closed"
 export const GET_SYSTEM_LOCALE = "getSystemLocale"
 
+// Emitted only by the server-synced web build (webapp-sync/bridge.js). The Electron and
+// localStorage builds never fire these, so the UI that listens for them simply stays idle.
+/** Payload: {status: SYNC_STATUS_*, pending?: number, message?: string} */
+export const SYNC_STATUS_EVENT = "sync:status"
+/** Payload: {path, localContent, serverContent, serverVersion} */
+export const SYNC_CONFLICT_EVENT = "sync:conflict"
+
+export const SYNC_STATUS_SYNCED = "synced"
+export const SYNC_STATUS_SAVING = "saving"
+export const SYNC_STATUS_OFFLINE = "offline"
+export const SYNC_STATUS_ERROR = "error"
+
 export const LIBRARY_SEARCH_START = "library-search:start"
 export const LIBRARY_SEARCH_CANCEL = "library-search:cancel"
 export const LIBRARY_SEARCH_MATCH = "library-search:match"

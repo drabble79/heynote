@@ -31,6 +31,7 @@ import { NoteFormat } from "../common/note-format.js"
 import { AUTO_SAVE_INTERVAL } from "../common/constants.js"
 import { useHeynoteStore } from "../stores/heynote-store.js";
 import { useErrorStore } from "../stores/error-store.js";
+import { useSyncStore } from "../stores/sync-store.js";
 import { foldGutterExtension } from "./fold-gutter.js"
 import { heynoteSearch } from "./search/search.js"
 import { spellcheckConfig } from "./spell-check.js"
@@ -89,6 +90,7 @@ export class HeynoteEditor {
         this.contentLoaded = false
         this.notesStore = useHeynoteStore()
         this.errorStore = useErrorStore()
+        this.syncStore = useSyncStore()
         this.name = ""
         this.selectionMarkMode = false
         
@@ -209,9 +211,20 @@ export class HeynoteEditor {
         this.diskContent = content
 
         // set up content change listener
-        this.onChange = (content) => {
+        this.onChange = (content, options = {}) => {
+            // setContent() replaces the whole document, so applying an incoming change while the
+            // user has unsaved edits would silently discard them. Rare with Electron's file
+            // watcher, routine once a server is pushing other browsers' saves.
+            if (!options.force && this.hasUnsavedChanges()) {
+                this.syncStore.addConflict({
+                    path: this.path,
+                    localContent: this.getContent(),
+                    serverContent: content,
+                })
+                return
+            }
             this.diskContent = content
-            this.setContent(content)
+            this.setContent(content, {keepCursor: true})
         }
         window.heynote.buffer.addOnChangeCallback(this.path, this.onChange)
 
@@ -219,7 +232,33 @@ export class HeynoteEditor {
         this.contentLoaded = true
     }
 
-    setContent(content) {
+    /**
+     * True when the document text differs from what was last loaded or saved.
+     *
+     * Deliberately compares only the text, not the serialized note: the metadata header also
+     * carries the cursor position and fold state, which change constantly without being an
+     * unsaved *edit*.
+     */
+    hasUnsavedChanges() {
+        if (!this.contentLoaded || !this.diskContent) {
+            return false
+        }
+        try {
+            return NoteFormat.load(this.diskContent).content !== this.view.state.sliceDoc()
+        } catch (e) {
+            return false
+        }
+    }
+
+    /**
+     * @param {object} [options]
+     * @param {boolean} [options.keepCursor] Keep the cursor where the user left it instead of
+     *        moving it to the position stored in the note's metadata. Used when applying a
+     *        change that came from somewhere else, where jumping the cursor would be jarring.
+     */
+    setContent(content, {keepCursor = false} = {}) {
+        const previousSelection = keepCursor && this.contentLoaded ? this.view.state.selection : null
+
         try {
             this.note = NoteFormat.load(content)
             this.setReadOnly(false)
@@ -229,7 +268,7 @@ export class HeynoteEditor {
             throw new Error(`Failed to load note: ${e.message}`)
         }
         this.name = this.note.metadata?.name || this.path
-        
+
         return new Promise((resolve) => {
             // set buffer content
             this.view.dispatch({
@@ -248,7 +287,18 @@ export class HeynoteEditor {
             // Set cursor positions
             // We use requestAnimationFrame to avoid a race condition causing the scrollIntoView to sometimes not work
             requestAnimationFrame(() => {
-                if (this.note.cursors) {
+                const docLength = this.view.state.doc.length
+                if (previousSelection) {
+                    // the incoming document may be shorter than the one the selection referred to
+                    const clamped = EditorSelection.create(
+                        previousSelection.ranges.map((range) => EditorSelection.range(
+                            Math.min(range.anchor, docLength),
+                            Math.min(range.head, docLength),
+                        )),
+                        previousSelection.mainIndex,
+                    )
+                    this.view.dispatch({selection: clamped, scrollIntoView: true})
+                } else if (this.note.cursors) {
                     this.view.dispatch({
                         selection: EditorSelection.fromJSON(this.note.cursors),
                         scrollIntoView: true,
