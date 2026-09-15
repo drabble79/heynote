@@ -94,7 +94,7 @@ const copyCut = async (view, cut, editor) => {
 }
 
 
-function doPaste(view, input) {
+export function doPaste(view, input) {
     let { state } = view, changes, i = 1, text = state.toText(input)
     let byLine = text.lines == state.selection.ranges.length
     if (byLine) {

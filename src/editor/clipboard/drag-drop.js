@@ -2,11 +2,13 @@ import { EditorView } from "@codemirror/view"
 import { EditorSelection } from "@codemirror/state"
 
 import { createImageTag } from "../image/image-parsing.js"
+import { doPaste } from "./copy-paste.js"
+import { unserializeFromHeynote } from "./serialize.js"
 import { imageFileUrl } from "../../common/image-url.js"
 
 const MAX_DISPLAY_HEIGHT = 200
 
-const buildImageTagFromFile = async (file) => {
+export const buildImageTagFromFile = async (file) => {
     if (!file.type.startsWith("image/")) {
         return null
     }
@@ -50,7 +52,7 @@ const buildImageTagFromFile = async (file) => {
     return createImageTag(image)
 }
 
-const insertImageTags = (view, pos, tags) => {
+export const insertImageTags = (view, pos, tags) => {
     const insert = tags.join("")
     view.dispatch(view.state.update({
         changes: { from: pos, to: pos, insert },
@@ -99,8 +101,54 @@ export const heynoteDropPaste = () => {
         return true
     }
 
+    /**
+     * Rich paste driven by the browser's own paste event.
+     *
+     * The Mod-v command reads the clipboard through navigator.clipboard.read(), which needs a
+     * secure context and the clipboard-read permission, and isn't supported at all in some
+     * browsers. When it isn't available a keybinding can't fall back to the native paste either,
+     * because the async command has already reported the key as handled. So in the web builds
+     * Mod-v is left to the browser (see src/editor/keymap.js) and the paste arrives here instead,
+     * with the data already attached to the event — no permission required.
+     */
+    const handlePaste = (event, view) => {
+        const clipboardData = event.clipboardData
+        if (!clipboardData || view.state.readOnly) {
+            return false
+        }
+
+        // blocks copied from Heynote itself, so languages and delimiters survive the round trip
+        const heynoteData = clipboardData.getData("web text/heynote")
+        if (heynoteData) {
+            event.preventDefault()
+            doPaste(view, unserializeFromHeynote(heynoteData))
+            return true
+        }
+
+        const files = Array.from(clipboardData.files || [])
+            .filter((file) => file.type.startsWith("image/"))
+        if (files.length && typeof window?.heynote?.buffer?.saveImage === "function") {
+            event.preventDefault()
+            const pos = view.state.selection.main.head
+            // the insert has to wait for the upload, so it happens after this handler returns
+            Promise.all(files.map(buildImageTagFromFile)).then((tags) => {
+                const imageTags = tags.filter(Boolean)
+                if (imageTags.length) {
+                    insertImageTags(view, pos, imageTags)
+                }
+            }).catch((error) => {
+                console.error("Failed to paste image:", error)
+            })
+            return true
+        }
+
+        // anything else: let CodeMirror insert the plain text itself
+        return false
+    }
+
     return EditorView.domEventHandlers({
         dragover: handleDragOver,
         drop: handleDrop,
+        paste: handlePaste,
     })
 }
