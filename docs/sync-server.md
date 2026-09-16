@@ -68,6 +68,36 @@ location / {
 }
 ```
 
+## Installing it as an app
+
+Heynote ships a web app manifest and a service worker, so browsers can install it as a
+standalone app: its own window, its own icon in the launcher or dock, no address bar. Installed,
+it also starts without the server being reachable — the editor opens, the status bar says it's
+offline, and queued saves go out when the connection comes back.
+
+**This requires a secure context.** Browsers only register service workers, and only offer
+installation, over HTTPS or on `localhost`. Over plain `http://192.168.x.x:3333` nothing here
+works — and the same restriction is what breaks copy and paste.
+
+The quickest way to get one, with no certificates involved, is to reach the server through an
+SSH tunnel, because `localhost` counts as secure:
+
+```sh
+ssh -N -L 3333:127.0.0.1:3333 you@your-server
+```
+
+Then open http://localhost:3333 and install from there. For a setup you don't have to start by
+hand, put it behind a reverse proxy with a real certificate as described above.
+
+To install: Chrome and Edge show an install icon at the right-hand side of the address bar, and
+also offer it under the ⋮ menu → *Cast, save and share* → *Install page as app*. Heynote's own
+main menu (the ⋮ button, visible when the sidebar is collapsed) has an **Install as app…** entry
+whenever the browser is willing. On iOS Safari use *Share* → *Add to Home Screen*.
+
+Installing has a second benefit: `Cmd/Ctrl` + `N`, `T` and `W` are reserved by the browser in a
+normal tab, but reach the app in a standalone window, so Heynote's own shortcuts for new
+buffer, new tab and close tab start working.
+
 ## How syncing works
 
 Notes are stored as ordinary `.txt` files in Heynote's existing format, so the library can be

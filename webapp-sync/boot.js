@@ -1,7 +1,24 @@
+import { setInstallPrompt } from "@/src/common/pwa"
+
 import { apiFetch } from "./api.js"
 import { createBridge } from "./bridge.js"
 import { ensureAuthenticated } from "./login.js"
 import { SyncClient } from "./sync-client.js"
+
+/**
+ * Registers the service worker that makes Heynote installable and able to start without the
+ * server. `navigator.serviceWorker` only exists in a secure context, so over plain http:// this
+ * quietly does nothing — see docs/sync-server.md.
+ */
+function registerServiceWorker(version) {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) {
+        return
+    }
+    // the version in the URL is what makes the browser pick up a new build
+    navigator.serviceWorker
+        .register(`/sw.js?v=${encodeURIComponent(version)}`)
+        .catch((error) => console.error("Service worker registration failed:", error))
+}
 
 /**
  * Installs `window.heynote` before the Vue app is imported.
@@ -28,6 +45,14 @@ export async function boot() {
 
     bridge.Heynote.init()
     sync.connect()
+
+    // must be registered before the browser decides whether the app is installable
+    window.addEventListener("beforeinstallprompt", (event) => {
+        // keep the event so the main menu can trigger the prompt on demand
+        event.preventDefault()
+        setInstallPrompt(event)
+    })
+    registerServiceWorker(bootstrap.version)
 
     return bridge
 }

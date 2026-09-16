@@ -3,6 +3,7 @@
     import { useHeynoteStore } from "@/src/stores/heynote-store"
     import { useContextMenuStore } from "@/src/stores/context-menu-store"
     import { OPEN_SETTINGS_EVENT } from "@/src/common/constants"
+    import { canInstall, promptInstall } from "@/src/common/pwa"
 
     export default {
         computed: {
@@ -34,6 +35,8 @@
                     {label: "Change block language…", action: () => store.openLanguageSelector()},
                     {label: "Delete block", action: () => editor()?.deleteActiveBlock()},
                     {separator: true},
+                    // only offered while the browser is actually willing to install
+                    ...(canInstall() ? [{label: "Install as app…", action: () => promptInstall()}] : []),
                     {label: "Settings", action: () => window.ipcRenderer?.send(OPEN_SETTINGS_EVENT)},
                 ])
             },
