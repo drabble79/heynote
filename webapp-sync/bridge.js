@@ -413,7 +413,16 @@ export function createBridge(boot) {
             }
         },
 
+        /**
+         * The library root can't change in the web build - it's a server setting - so this never
+         * fires. Note contents changing is a different thing entirely; see below.
+         */
         setLibraryPathChangeCallback(callback) {
+            // intentionally unused
+        },
+
+        /** Another browser (or the server's filesystem) added, removed or renamed a note. */
+        setLibraryContentChangeCallback(callback) {
             libraryChangeCallbacks.push(callback)
         },
     }

@@ -511,6 +511,32 @@ export const useHeynoteStore = defineStore("heynote", {
             await this.updateBuffers()
         },
 
+        /**
+         * Pick up a changed set of notes without disturbing what the user is looking at.
+         *
+         * reloadLibrary() exists for the case where the library *root* changed, so everything
+         * that was open points somewhere else and has to go. That's not what happens when a note
+         * is added or removed elsewhere, or when a dropped connection comes back: the library is
+         * the same one, and throwing away the open tabs would just lose the user's place.
+         *
+         * Only tabs whose note has actually disappeared are closed.
+         */
+        async refreshLibrary() {
+            const editorCacheStore = useEditorCacheStore()
+            await this.updateBuffers()
+
+            const gone = this.openTabs.filter((path) => !(path in this.buffers))
+            for (const path of gone) {
+                // the file no longer exists, so there is nothing to save on the way out
+                editorCacheStore.freeEditor(path, false)
+                this.closeTab(path)
+            }
+
+            if (!(this.currentBufferPath in this.buffers)) {
+                this.openBuffer(SCRATCH_FILE_NAME)
+            }
+        },
+
         async reloadLibrary() {
             const editorCacheStore = useEditorCacheStore()
             await this.updateBuffers()
@@ -557,8 +583,14 @@ export const useHeynoteStore = defineStore("heynote", {
 
 export async function initHeynoteStore() {
     const heynoteStore = useHeynoteStore()
+    // the library root itself changed - everything that was open points elsewhere now
     window.heynote.buffer.setLibraryPathChangeCallback(() => {
         heynoteStore.reloadLibrary()
+    })
+    // the same library gained or lost notes, e.g. another browser created one. Only implemented
+    // by the server-synced build; the open tabs are still valid and must be left alone.
+    window.heynote.buffer.setLibraryContentChangeCallback?.(() => {
+        heynoteStore.refreshLibrary()
     })
     window.heynote.mainProcess.on(WINDOW_FULLSCREEN_STATE, (event, state) => {
         heynoteStore.isFullscreen = state
