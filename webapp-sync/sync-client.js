@@ -5,11 +5,7 @@ import {
 } from "@/src/common/constants"
 
 import { getClientId } from "./api.js"
-import {
-    SYNC_STATUS_EVENT,
-    SYNC_STATUS_OFFLINE,
-    SYNC_STATUS_SYNCED,
-} from "./events.js"
+import { SYNC_STATUS_EVENT } from "./events.js"
 
 /**
  * WebSocket client: receives changes other browsers made, and carries streaming library-search
@@ -26,6 +22,7 @@ export class SyncClient {
     constructor(bridge) {
         this.bridge = bridge
         this.ws = null
+        this.connected = false
         this.attempt = 0
         this.closed = false
         this.everConnected = false
@@ -52,7 +49,7 @@ export class SyncClient {
             const wasDisconnected = this.everConnected && this.attempt > 0
             this.attempt = 0
             this.everConnected = true
-            this._status(SYNC_STATUS_SYNCED)
+            this._setConnected(true)
             if (wasDisconnected) {
                 // We may have missed pushes while we were away.
                 this.bridge.resyncOpenNotes()
@@ -72,7 +69,7 @@ export class SyncClient {
 
         ws.addEventListener("close", () => {
             this.ws = null
-            this._status(SYNC_STATUS_OFFLINE)
+            this._setConnected(false)
             this._scheduleReconnect()
         })
 
@@ -104,8 +101,10 @@ export class SyncClient {
         }
     }
 
-    _status(status, extra = {}) {
-        this.bridge.ipcRenderer.send(SYNC_STATUS_EVENT, {status, ...extra})
+    /** Reports only the push channel; the save queue reports itself from the bridge. */
+    _setConnected(connected) {
+        this.connected = connected
+        this.bridge.ipcRenderer.send(SYNC_STATUS_EVENT, {connected})
     }
 
     _scheduleReconnect() {

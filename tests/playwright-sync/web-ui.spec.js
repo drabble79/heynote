@@ -164,9 +164,11 @@ test.describe("offline saves", () => {
         }, `${SCRATCH_HEADER}\n∞∞∞text\nwritten while offline`)
 
         // the status bar has to actually say something is wrong
+        // only the save endpoint is blocked here, so the socket is still up — the indicator
+        // reports the queued change rather than claiming the connection is down
         const status = page.locator(".sync-status")
         await expect(status).toBeVisible({timeout: 10000})
-        await expect(status).toContainText("Offline")
+        await expect(status).toHaveText(/Unsaved \(\d+\)/, {timeout: 10000})
 
         // let the writes through again; the queued save should land on its own
         await context.unroute("**/api/notes")
@@ -176,7 +178,8 @@ test.describe("offline saves", () => {
             return (await response.json()).content
         }, {timeout: 30000}).toContain("written while offline")
 
-        await expect(status).toBeHidden()
+        // the indicator stays visible and returns to the healthy state
+        await expect(status).toHaveText("Synced", {timeout: 15000})
 
         await context.close()
     })

@@ -21,15 +21,20 @@ export const GET_SYSTEM_LOCALE = "getSystemLocale"
 
 // Emitted only by the server-synced web build (webapp-sync/bridge.js). The Electron and
 // localStorage builds never fire these, so the UI that listens for them simply stays idle.
-/** Payload: {status: SYNC_STATUS_*, pending?: number, message?: string} */
+/**
+ * Partial update of the sync state: {connected?: boolean, pending?: number, message?: string}.
+ * Fields that aren't mentioned keep their previous value, so the WebSocket and the save queue
+ * can report independently without overwriting each other.
+ */
 export const SYNC_STATUS_EVENT = "sync:status"
 /** Payload: {path, localContent, serverContent, serverVersion} */
 export const SYNC_CONFLICT_EVENT = "sync:conflict"
 
+// derived by the sync store from `connected`, `pending` and outstanding conflicts
 export const SYNC_STATUS_SYNCED = "synced"
-export const SYNC_STATUS_SAVING = "saving"
 export const SYNC_STATUS_OFFLINE = "offline"
 export const SYNC_STATUS_ERROR = "error"
+export const SYNC_STATUS_CONFLICT = "conflict"
 
 export const LIBRARY_SEARCH_START = "library-search:start"
 export const LIBRARY_SEARCH_CANCEL = "library-search:cancel"

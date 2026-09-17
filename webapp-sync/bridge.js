@@ -12,13 +12,7 @@ import { DEVICE_LOCAL_SETTINGS, getDefaultSettings } from "@/src/common/default-
 
 import { ApiError, apiFetch, ConflictError, encodeQuery, getClientId, OfflineError } from "./api.js"
 import { MERGE_CLEAN, mergeNoteContent } from "./merge.js"
-import {
-    SYNC_CONFLICT_EVENT,
-    SYNC_STATUS_ERROR,
-    SYNC_STATUS_EVENT,
-    SYNC_STATUS_OFFLINE,
-    SYNC_STATUS_SYNCED,
-} from "./events.js"
+import { SYNC_CONFLICT_EVENT, SYNC_STATUS_EVENT } from "./events.js"
 
 import {
     deleteViewState,
@@ -145,13 +139,14 @@ export function createBridge(boot) {
     let retryTimer = null
     let retryDelay = RETRY_BASE_MS
 
-    function reportStatus(status, extra = {}) {
-        ipcRenderer.send(SYNC_STATUS_EVENT, {status, pending: pendingSaves.size, ...extra})
+    /** Reports only the save queue; the WebSocket reports itself from the sync client. */
+    function reportStatus(message = "") {
+        ipcRenderer.send(SYNC_STATUS_EVENT, {pending: pendingSaves.size, message})
     }
 
     function queueRetry(path, content) {
         pendingSaves.set(path, content)
-        reportStatus(SYNC_STATUS_OFFLINE)
+        reportStatus()
         scheduleRetry()
     }
 
@@ -174,12 +169,12 @@ export function createBridge(boot) {
                     }
                     // a real server error won't fix itself by retrying the same bytes
                     pendingSaves.delete(path)
-                    reportStatus(SYNC_STATUS_ERROR, {message: error.message})
+                    reportStatus(error.message)
                 }
             }
             if (pendingSaves.size === 0 && recovered) {
                 retryDelay = RETRY_BASE_MS
-                reportStatus(SYNC_STATUS_SYNCED)
+                reportStatus()
                 return
             }
             retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS)
@@ -198,7 +193,7 @@ export function createBridge(boot) {
             versions.set(path, result.version)
             baseContents.set(path, shared)
             if (!retrying) {
-                reportStatus(SYNC_STATUS_SYNCED)
+                reportStatus()
             }
         } catch (error) {
             if (error instanceof ConflictError) {
@@ -292,7 +287,7 @@ export function createBridge(boot) {
                     queueRetry(path, shared)
                     return
                 }
-                reportStatus(SYNC_STATUS_ERROR, {message: error.message})
+                reportStatus(error.message)
                 throw error
             }
         },
@@ -572,6 +567,18 @@ export function createBridge(boot) {
         /** Lets the WebSocket client drive library search through mainProcess.invoke(). */
         attachSync(client) {
             sync = client
+        },
+
+        /**
+         * The current sync state, for a subscriber that starts listening after the fact.
+         * The socket usually connects during boot(), before the Vue app has mounted and the
+         * store has subscribed, so the first status event would otherwise be missed.
+         */
+        getSyncState() {
+            return {
+                connected: sync?.connected === true,
+                pending: pendingSaves.size,
+            }
         },
 
         /** A different browser saved this note. */
