@@ -12,6 +12,7 @@ import {
 } from "@/src/common/constants";
 import { generateClientId, TEST_CLIENT_ID } from "@/src/common/client-id";
 import { getDefaultSettings } from "@/src/common/default-settings";
+import { documentTitleFor } from "@/src/common/pwa";
 import { CURRENCY_RATES_URL, getCurrencyFetchOptions } from "@/src/common/currency-request";
 import { normalizeLibrarySearchMatch } from "@/src/common/library-search-match";
 import { isLibrarySearchQueryLongEnough } from "@/src/common/library-search-query.js";
@@ -397,7 +398,7 @@ const Heynote = {
     },
 
     setWindowTitle(title) {
-        document.title = title + " - Heynote"
+        document.title = documentTitleFor(title)
     },
 
     async getSystemLocale() {

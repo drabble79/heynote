@@ -34,6 +34,17 @@ export function isStandalone() {
         window.navigator.standalone === true
 }
 
+/**
+ * The document title to use for a given buffer name.
+ *
+ * A browser tab shows nothing but the document title, so it has to carry the app name. An
+ * installed app's window already has the app name in its title bar, and appending it again
+ * produces "Heynote - Work - Heynote".
+ */
+export function documentTitleFor(bufferName) {
+    return isStandalone() ? bufferName : `${bufferName} - Heynote`
+}
+
 export function onInstallAvailabilityChange(listener) {
     listeners.add(listener)
     return () => listeners.delete(listener)

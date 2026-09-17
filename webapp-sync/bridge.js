@@ -9,6 +9,7 @@ import {
     WINDOW_FULLSCREEN_STATE,
 } from "@/src/common/constants"
 import { DEVICE_LOCAL_SETTINGS, getDefaultSettings } from "@/src/common/default-settings"
+import { documentTitleFor } from "@/src/common/pwa"
 
 import { ApiError, apiFetch, ConflictError, encodeQuery, getClientId, OfflineError } from "./api.js"
 import { MERGE_CLEAN, mergeNoteContent } from "./merge.js"
@@ -555,7 +556,7 @@ export function createBridge(boot) {
         },
 
         setWindowTitle(title) {
-            document.title = `${title} - Heynote`
+            document.title = documentTitleFor(title)
         },
 
         async getSystemLocale() {
