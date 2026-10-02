@@ -326,7 +326,10 @@ export const LANGUAGES = [
             }),
         ]),
         prettier: {parser: "markdown", plugins: [markdownPrettierPlugin]},
-        // no guesslang: language auto-detection must never switch a block to this by itself
+        // Explicitly null, not omitted: language auto-detection must never switch a block to
+        // this by itself, and vite.config.mjs filters the guesslang list with `!== null`, so an
+        // undefined here would be serialised into the worker's language list as a stray null.
+        guesslang: null,
     }),
 ]
 
