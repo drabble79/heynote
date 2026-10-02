@@ -4,6 +4,7 @@ import { javascriptLanguage, jsxLanguage, tsxLanguage, typescriptLanguage } from
 import { htmlLanguage } from "@codemirror/lang-html"
 import { StandardSQL } from "@codemirror/lang-sql"
 import { markdownLanguage } from "@codemirror/lang-markdown"
+import { parseCode } from "@lezer/markdown"
 import { javaLanguage } from "@codemirror/lang-java"
 import { lezerLanguage } from "@codemirror/lang-lezer"
 import { phpLanguage } from "@codemirror/lang-php"
@@ -65,6 +66,14 @@ class Language {
         return !!this.prettier
     }
 }
+
+/**
+ * Block language that renders Markdown instead of showing its source.
+ *
+ * Exported so the rendering extensions in src/editor/rich-markdown/ can gate on it without
+ * repeating the string. Must stay [a-z]+ and be listed in lang-heynote/heynote.grammar.
+ */
+export const RICH_MARKDOWN_TOKEN = "richmarkdown"
 
 export const LANGUAGES = [
     new Language({
@@ -301,6 +310,24 @@ export const LANGUAGES = [
         parser: mermaidLanguage.parser ,
         guesslang: null,
     }),
+    new Language({
+        token: RICH_MARKDOWN_TOKEN,
+        name: "Rich Markdown",
+        // Same Markdown as above, but with fenced code blocks parsed as their own language so
+        // they can be syntax highlighted. src/editor/rich-markdown/ renders the result.
+        parser: markdownLanguage.parser.configure([
+            parseCode({
+                // Called while parsing, by which time LANGUAGES is fully built - so referring to
+                // getLanguage() from here doesn't create a cycle.
+                codeParser: (info) => getLanguage(normalizeCodeFenceInfo(info))?.parser ?? null,
+                // htmlParser is deliberately omitted: note content arrives from other browsers
+                // through the sync server, and parsing it as HTML is the first step towards
+                // rendering it as HTML.
+            }),
+        ]),
+        prettier: {parser: "markdown", plugins: [markdownPrettierPlugin]},
+        // no guesslang: language auto-detection must never switch a block to this by itself
+    }),
 ]
 
 
@@ -308,6 +335,40 @@ const languageMapping = Object.fromEntries(LANGUAGES.map(l => [l.token, l]))
 
 export function getLanguage(token) {
     return languageMapping[token]
+}
+
+/**
+ * Maps what people actually write after ``` to a Heynote language token.
+ * Anything not listed is tried as-is, so ```python works without an entry.
+ */
+const CODE_FENCE_ALIASES = {
+    js: "javascript",
+    mjs: "javascript",
+    cjs: "javascript",
+    node: "javascript",
+    ts: "typescript",
+    py: "python",
+    rb: "ruby",
+    rs: "rust",
+    sh: "shell",
+    bash: "shell",
+    zsh: "shell",
+    yml: "yaml",
+    md: "markdown",
+    "c++": "cpp",
+    c: "cpp",
+    "c#": "csharp",
+    cs: "csharp",
+    go: "golang",
+    kt: "kotlin",
+    ps1: "powershell",
+    htm: "html",
+}
+
+function normalizeCodeFenceInfo(info) {
+    // the info string can carry more than the language, e.g. ```js title="example.js"
+    const name = (info || "").trim().split(/\s+/)[0].toLowerCase()
+    return CODE_FENCE_ALIASES[name] ?? name
 }
 
 

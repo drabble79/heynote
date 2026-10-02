@@ -162,4 +162,61 @@ export const heynoteBase = EditorView.theme({
         float: "right",
         marginRight: "6px",
     },
+
+    // Rich Markdown. Structure only - colours live in theme/light.js and theme/dark.js, so the
+    // two themes stay the single place where palette decisions are made.
+    ".cm-rmd-heading": {
+        fontWeight: "700",
+        lineHeight: "1.3",
+    },
+    ".cm-rmd-h1": { fontSize: "1.6em" },
+    ".cm-rmd-h2": { fontSize: "1.4em" },
+    ".cm-rmd-h3": { fontSize: "1.22em" },
+    ".cm-rmd-h4": { fontSize: "1.1em" },
+    ".cm-rmd-h5": { fontSize: "1em" },
+    ".cm-rmd-h6": { fontSize: "1em" },
+
+    ".cm-rmd-quote": {
+        paddingLeft: "0.9em",
+        borderLeft: "3px solid rgba(128,128,128,0.45)",
+    },
+
+    ".cm-rmd-code": {
+        backgroundColor: "rgba(128,128,128,0.10)",
+    },
+
+    ".cm-rmd-rule": {
+        padding: "0.35em 0",
+    },
+    ".cm-rmd-rule hr": {
+        border: "none",
+        borderTop: "1px solid rgba(128,128,128,0.5)",
+        margin: "0",
+    },
+
+    ".cm-rmd-bullet": {
+        // keep the glyph the same width as the "- " it replaces so text still lines up
+        display: "inline-block",
+        width: "1ch",
+    },
+
+    ".cm-rmd-table": {
+        padding: "0.3em 0",
+        overflowX: "auto",
+    },
+    ".cm-rmd-table table": {
+        borderCollapse: "collapse",
+        // tables are content, not code: proportional text reads better and wraps sensibly
+        fontFamily: "inherit",
+    },
+    ".cm-rmd-table th, .cm-rmd-table td": {
+        border: "1px solid rgba(128,128,128,0.45)",
+        padding: "0.25em 0.6em",
+        textAlign: "left",
+        verticalAlign: "top",
+    },
+    ".cm-rmd-table th": {
+        fontWeight: "700",
+        backgroundColor: "rgba(128,128,128,0.12)",
+    },
 })

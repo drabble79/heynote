@@ -217,7 +217,9 @@ const blockLayer = layer({
     },
 
     update(update, dom) {
-        return update.docChanged || update.viewportChanged
+        // selectionSet is needed because Rich Markdown reveals and re-hides source as the cursor
+        // moves, which changes line heights without changing the document
+        return update.docChanged || update.viewportChanged || update.selectionSet
     },
 
     class: "heynote-blocks-layer"
