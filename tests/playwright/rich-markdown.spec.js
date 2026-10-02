@@ -115,6 +115,18 @@ test.describe("rendering", () => {
         await expect(page.locator(".cm-rmd-bullet")).toHaveCount(2)
     })
 
+    test("the bullet glyph follows nesting depth, not the marker character", async ({ page }) => {
+        await heynotePage.setContent(
+            `\n∞∞∞richmarkdown\n- one\n    - two\n        - three\n            - four\n* star\n${PARK}`
+        )
+        await parkCursor(page)
+
+        // "-", "*" and "+" are the same thing to Markdown, so the glyph tracks depth the way
+        // HTML's <ul> does - a "*" at the top level is still a top-level bullet
+        expect(await page.locator(".cm-rmd-bullet").allInnerTexts())
+            .toEqual(["•", "◦", "▪", "•", "•"])
+    })
+
     test("ordered markers are left as they are", async ({ page }) => {
         await heynotePage.setContent(`\n∞∞∞richmarkdown\n1. first\n2. second\n10. tenth\n${PARK}`)
         await parkCursor(page)

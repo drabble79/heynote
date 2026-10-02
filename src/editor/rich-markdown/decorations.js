@@ -194,7 +194,7 @@ function buildInlineDecorations(view) {
                     return
                 }
                 decorations.push(
-                    Decoration.replace({ widget: new BulletWidget("•") }).range(from, to)
+                    Decoration.replace({ widget: new BulletWidget(bulletFor(node)) }).range(from, to)
                 )
                 return
             }
@@ -219,6 +219,25 @@ function buildInlineDecorations(view) {
     }
 
     return Decoration.set(decorations, true)
+}
+
+/**
+ * Bullet glyph by nesting depth, the way HTML's <ul> and most Markdown renderers do it.
+ *
+ * Deliberately not keyed on the marker character: "-", "*" and "+" are the same thing to
+ * Markdown, so giving them different glyphs would invent a meaning the file doesn't carry and
+ * that no other app would show. Depth is real structure.
+ */
+const BULLETS = ["•", "◦", "▪"]
+
+function bulletFor(listMarkNode) {
+    let depth = 0
+    for (let node = listMarkNode.parent; node; node = node.parent) {
+        if (node.name === "BulletList") {
+            depth++
+        }
+    }
+    return BULLETS[Math.max(0, depth - 1) % BULLETS.length]
 }
 
 /**
