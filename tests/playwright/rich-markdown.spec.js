@@ -82,11 +82,29 @@ test.describe("rendering", () => {
         await expect(content(page)).not.toContainText("example.com")
     })
 
-    test("list markers become bullets", async ({ page }) => {
+    test("bullet markers become bullets", async ({ page }) => {
         await heynotePage.setContent(`\n∞∞∞richmarkdown\n- first\n- second\n${PARK}`)
         await parkCursor(page)
 
         await expect(page.locator(".cm-rmd-bullet")).toHaveCount(2)
+    })
+
+    test("ordered markers are left as they are", async ({ page }) => {
+        await heynotePage.setContent(`\n∞∞∞richmarkdown\n1. first\n2. second\n10. tenth\n${PARK}`)
+        await parkCursor(page)
+
+        // "1." already reads correctly; replacing it with a same-text widget gained nothing and
+        // squeezed multi-digit markers into a one-character box, wrapping the line
+        await expect(page.locator(".cm-rmd-bullet")).toHaveCount(0)
+        await expect(content(page)).toContainText("1. first")
+        await expect(content(page)).toContainText("10. tenth")
+
+        // every item stays on one line
+        const lines = page.locator(".cm-line")
+        const heights = await lines.evaluateAll((els) =>
+            els.filter((el) => /^\s*\d+\./.test(el.textContent)).map((el) => el.getBoundingClientRect().height))
+        expect(heights).toHaveLength(3)
+        expect(Math.max(...heights)).toBeCloseTo(Math.min(...heights), 0)
     })
 
     test("a horizontal rule becomes a line", async ({ page }) => {

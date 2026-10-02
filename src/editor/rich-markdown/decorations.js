@@ -187,11 +187,14 @@ function buildInlineDecorations(view) {
                 if (lineRevealed(state, from)) {
                     return
                 }
-                const text = state.doc.sliceString(from, to)
-                // ordered lists keep their number; bullets become a real bullet glyph
-                const rendered = /^\d/.test(text) ? text : "•"
+                // Only bullets are swapped for a glyph. An ordered marker like "1." or "10." is
+                // already what should be displayed, and replacing it with a widget of the same
+                // text gained nothing while breaking its width.
+                if (/^\d/.test(state.doc.sliceString(from, to))) {
+                    return
+                }
                 decorations.push(
-                    Decoration.replace({ widget: new BulletWidget(rendered) }).range(from, to)
+                    Decoration.replace({ widget: new BulletWidget("•") }).range(from, to)
                 )
                 return
             }

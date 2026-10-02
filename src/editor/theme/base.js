@@ -195,9 +195,10 @@ export const heynoteBase = EditorView.theme({
     },
 
     ".cm-rmd-bullet": {
-        // keep the glyph the same width as the "- " it replaces so text still lines up
+        // Keep the glyph the same width as the "-" it replaces so text still lines up.
+        // min-width rather than width: a fixed width silently clips anything wider.
         display: "inline-block",
-        width: "1ch",
+        minWidth: "1ch",
     },
 
     ".cm-rmd-table": {
