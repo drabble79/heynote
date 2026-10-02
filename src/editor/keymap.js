@@ -102,12 +102,22 @@ export const DEFAULT_KEYMAP = [
         cmd("Mod-c", "copy"),
         cmd("Mod-v", "paste"),
     ]),
+
+    // Markdown formatting, in place of a toolbar. Both keys are free in Heynote, and unlike
+    // Cmd/Ctrl+N/T/W a browser lets the page have them.
+    cmd("Mod-b", "toggleBold"),
+    cmd("Mod-i", "toggleItalic"),
     cmd("Mod-z", "undo"),
     cmd("Mod-Shift-z", "redo"),
     ...(isWindows || isLinux ? [
         cmd("Mod-y", "redo"),
     ] : []),
 
+    // Table cell navigation must be tried before indentation. CodeMirror runs the bindings for a
+    // key in array order and stops at the first that returns true, and these return false when
+    // the cursor isn't in a Markdown table, so Tab keeps indenting everywhere else.
+    cmd("Tab", "markdownTableNextCell"),
+    cmd("Shift-Tab", "markdownTablePrevCell"),
     cmd("Tab", "insertIndentation"),
     cmd("Shift-Tab", "indentLess"),
     //cmd("Alt-ArrowLeft", "cursorSubwordBackward"),

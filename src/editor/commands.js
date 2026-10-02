@@ -45,6 +45,13 @@ import { useHeynoteStore } from "../stores/heynote-store.js";
 import { useSettingsStore } from "../stores/settings-store.js"
 import { toggleSpellcheck, enableSpellcheck, disableSpellcheck } from "./spell-check.js"
 import { insertIndentation } from "./indentation.js"
+import { toggleBold, toggleItalic, toggleInlineCode, toggleStrikethrough } from "./markdown-commands.js"
+import {
+    formatMarkdownTable,
+    insertMarkdownTable,
+    markdownTableNextCell,
+    markdownTablePrevCell,
+} from "./rich-markdown/table-commands.js"
 import { toggleCheckbox } from "./todo-checkbox.ts"
 
 
@@ -247,6 +254,14 @@ const HEYNOTE_COMMANDS = {
     insertNewlineAndIndent: cmdLessContext(insertNewlineAndIndent, "Edit", "Insert newline and indent"),
     insertNewlineContinueMarkup: cmdLessContext(insertNewlineContinueMarkup, "Markdown", "Insert newline and continue todo lists/block quotes"),
     toggleCheckbox: cmdLessContext(toggleCheckbox, "Markdown", "Toggle todo checkbox"),
+    toggleBold: cmdLessContext(toggleBold, "Markdown", "Toggle bold"),
+    toggleItalic: cmdLessContext(toggleItalic, "Markdown", "Toggle italic"),
+    toggleInlineCode: cmdLessContext(toggleInlineCode, "Markdown", "Toggle inline code"),
+    toggleStrikethrough: cmdLessContext(toggleStrikethrough, "Markdown", "Toggle strikethrough"),
+    markdownTableNextCell: cmdLessContext(markdownTableNextCell, "Markdown", "Table: next cell"),
+    markdownTablePrevCell: cmdLessContext(markdownTablePrevCell, "Markdown", "Table: previous cell"),
+    formatMarkdownTable: cmdLessContext(formatMarkdownTable, "Markdown", "Table: align columns"),
+    insertMarkdownTable: cmdLessContext(insertMarkdownTable, "Markdown", "Table: insert"),
     toggleComment: cmdLessContext(toggleComment, "Edit", "Toggle comment"),
     toggleBlockComment: cmdLessContext(toggleBlockComment, "Edit", "Toggle block comment"),
     toggleLineComment: cmdLessContext(toggleLineComment, "Edit", "Toggle line comment"),
