@@ -213,12 +213,35 @@ function buildInlineDecorations(view) {
             }
 
             if (INLINE_MARKS.has(name) && !lineRevealed(state, from)) {
-                decorations.push(hiddenMark.range(from, to))
+                decorations.push(hiddenMark.range(from, markEnd(state, name, from, to)))
             }
         })
     }
 
     return Decoration.set(decorations, true)
+}
+
+/**
+ * Marks that start a line take the whitespace separating them from the text with them.
+ *
+ * Hiding just the "#" leaves the space behind, and that space is rendered in the heading's own
+ * font size — so "# x", "## x" and "### x" would each start at a different horizontal position.
+ */
+const LINE_LEADING_MARKS = new Set(["HeaderMark", "QuoteMark"])
+
+function markEnd(state, name, from, to) {
+    if (!LINE_LEADING_MARKS.has(name)) {
+        return to
+    }
+    // a closing ATX sequence ("# title #") is not at the start of its line; leave it alone
+    if (state.doc.lineAt(from).from !== from) {
+        return to
+    }
+    let end = to
+    while (end < state.doc.length && /[ \t]/.test(state.doc.sliceString(end, end + 1))) {
+        end++
+    }
+    return end
 }
 
 /** The bracket/paren punctuation and the URL, i.e. everything but the link text. */

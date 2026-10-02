@@ -60,6 +60,32 @@ test.describe("rendering", () => {
         expect(h1Box.height).toBeGreaterThan(h3Box.height)
     })
 
+    test("heading text starts at the same place at every level", async ({ page }) => {
+        await heynotePage.setContent(`\n∞∞∞richmarkdown\n# test\n## test\n### test\n${PARK}`)
+        await parkCursor(page)
+
+        // Hiding only the "#" leaves the space behind, and that space is rendered in the
+        // heading's own font size - so each level would start at a different x.
+        const xs = await page.locator(".cm-line.cm-rmd-heading").evaluateAll((els) =>
+            els.map((el) => {
+                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+                let node
+                while ((node = walker.nextNode())) {
+                    const i = node.textContent.indexOf("test")
+                    if (i === -1) continue
+                    const range = document.createRange()
+                    range.setStart(node, i)
+                    range.setEnd(node, i + 4)
+                    return range.getBoundingClientRect().x
+                }
+                return null
+            })
+        )
+
+        expect(xs).toHaveLength(3)
+        expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(1)
+    })
+
     test("markup is hidden until the cursor reaches the line", async ({ page }) => {
         await heynotePage.setContent(`\n∞∞∞richmarkdown\n# Heading\n\n**bold** text\n${PARK}`)
         await parkCursor(page)
