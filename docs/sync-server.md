@@ -98,6 +98,30 @@ Installing has a second benefit: `Cmd/Ctrl` + `N`, `T` and `W` are reserved by t
 normal tab, but reach the app in a standalone window, so Heynote's own shortcuts for new
 buffer, new tab and close tab start working.
 
+## Rich Markdown blocks
+
+`Ctrl+L` offers a **Rich Markdown** block alongside the existing Markdown one. It renders
+instead of showing source: headings get real sizes, quotes get a rule, lists get bullets, links
+show their text without the URL, `---` becomes a line, fenced code is syntax highlighted, and
+tables become actual tables. The source for the line you're on — or the table you click into —
+comes back so you can edit it.
+
+The plain `markdown` block is unchanged, so nothing you already wrote looks different. There is
+no setting: the block language is the switch, and `Ctrl+L` back to Markdown is the way out.
+
+What's stored is still ordinary Markdown; only the block delimiter differs
+(`∞∞∞richmarkdown`). Two consequences worth knowing:
+
+- **A note using these blocks won't open correctly in stock upstream Heynote.** Block languages
+  are a fixed list in the delimiter grammar, so an unrecognised one shows the delimiter line as
+  text. Builds from this repo — desktop and web — are fine.
+- HTML in a note is never rendered as HTML, deliberately. Note content arrives from other
+  browsers through the sync server, so it is treated as untrusted input.
+
+Editing helpers, in both Markdown block types: `Ctrl+B` / `Ctrl+I` toggle bold and italic,
+`Tab` / `Shift-Tab` move between table cells and align the table, and the command palette has
+inline code, strikethrough, insert table and align table.
+
 ## How syncing works
 
 Notes are stored as ordinary `.txt` files in Heynote's existing format, so the library can be
