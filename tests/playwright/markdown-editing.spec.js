@@ -100,6 +100,23 @@ test.describe("table editing", () => {
         expect(lines[lines.length - 1]).toMatch(/^\|\s+\|\s+\|$/)
     })
 
+    test("Tab in a plain markdown block never rewrites a table", async ({ page }) => {
+        // Tab is bound ahead of indentation, so claiming it in an existing `markdown` block
+        // would silently reformat documents people already have.
+        const doc = `\n∞∞∞markdown\n| a | bb |\n| - | - |\n| 1 | 2 |\n`
+        await heynotePage.setContent(doc)
+        await heynotePage.setCursorPosition((await heynotePage.getContent()).indexOf("| a |") + 3)
+
+        await page.locator("body").press("Tab")
+
+        const updated = await heynotePage.getContent()
+        // Tab inserting indentation is the behaviour this block always had. What must not happen
+        // is the table being reformatted - the delimiter row is the giveaway, since aligning
+        // rewrites "| - | - |" as "| --- | --- |".
+        expect(updated).toContain("| - | - |")
+        expect(updated).not.toContain("| --- | --- |")
+    })
+
     test("Tab outside a table still indents", async ({ page }) => {
         await heynotePage.setContent(`\n∞∞∞richmarkdown\nplain line\n`)
         const source = await heynotePage.getContent()

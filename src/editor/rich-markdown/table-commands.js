@@ -13,8 +13,19 @@ import { RICH_MARKDOWN_TOKEN } from "../languages.js"
 
 const MARKDOWN_LANGUAGES = new Set(["markdown", RICH_MARKDOWN_TOKEN])
 
+/** Commands the user invokes by name, which are welcome in either Markdown block. */
 function inMarkdownBlock(state, pos) {
     return MARKDOWN_LANGUAGES.has(getNoteBlockFromPos(state, pos)?.language?.name)
+}
+
+/**
+ * Tab and Shift-Tab are bound ahead of indentation, so taking them over in a plain `markdown`
+ * block would change what an existing document does: pressing Tab in a table used to indent,
+ * and would instead silently rewrite the table. Cell navigation is therefore limited to Rich
+ * Markdown, where rendering already makes the table a thing you interact with.
+ */
+function inRichMarkdownBlock(state, pos) {
+    return getNoteBlockFromPos(state, pos)?.language?.name === RICH_MARKDOWN_TOKEN
 }
 
 const isTableLine = (text) => /^\s*\|/.test(text)
@@ -140,7 +151,7 @@ function moveCell(direction) {
             return false
         }
         const pos = state.selection.main.head
-        if (!inMarkdownBlock(state, pos)) {
+        if (!inRichMarkdownBlock(state, pos)) {
             return false
         }
         const table = tableAt(state, pos)
