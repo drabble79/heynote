@@ -41,6 +41,32 @@ function httpError(message, statusCode) {
     return Object.assign(new Error(message), {statusCode})
 }
 
+// A delimiter starts a line, which is usually after the metadata header but can be position 0
+// for content that carries no header.
+const BLOCK_DELIMITER = /(^|\n)∞∞∞/
+
+/**
+ * Refuses a write that would strip every block delimiter from a note that had them.
+ *
+ * Every Heynote note has at least one block, so content without a single delimiter is never
+ * something a working client meant to save — it's what a client produces when it failed to parse
+ * the note and ended up with an empty document. One such save replaces the note with nothing,
+ * and because the next load can't find a delimiter either, each following save prepends another
+ * metadata header until the file is nothing but headers.
+ *
+ * The check lives here rather than in the client because it has to hold for *every* client,
+ * including older builds that don't know a newer block language.
+ */
+function assertNotBlockless(path, current, incoming) {
+    if (!BLOCK_DELIMITER.test(current) || BLOCK_DELIMITER.test(incoming)) {
+        return
+    }
+    throw httpError(
+        `Refusing to save ${path}: the content has no block delimiter, which would destroy the note.`,
+        422,
+    )
+}
+
 export class SyncLibrary {
     /**
      * @param {object} [options]
@@ -182,6 +208,7 @@ export class SyncLibrary {
             if (current === content) {
                 return {version: currentVersion, unchanged: true}
             }
+            assertNotBlockless(path, current, content)
             await this.library.save(path, content)
             return {version: versionOf(content), unchanged: false}
         })

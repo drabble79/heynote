@@ -32,6 +32,14 @@ export function getBlocksFromSyntaxTree(state) {
                     return true
                 } else if (type.type.id === NoteDelimiter) {
                     const langNode = type.node.getChild("NoteLanguage")
+                    // A delimiter naming a language this build doesn't know parses only
+                    // partially, leaving no NoteLanguage node. Skipping it keeps the rest of the
+                    // note readable; dereferencing it threw out of the blockState update, which
+                    // left the editor with an empty document that autosave then wrote back over
+                    // the real content.
+                    if (!langNode) {
+                        return false
+                    }
                     const language = state.doc.sliceString(langNode.from, langNode.to)
                     const isAuto = !!type.node.getChild("Auto")
 
@@ -55,6 +63,9 @@ export function getBlocksFromSyntaxTree(state) {
                     }
 
                     const contentNode = type.node.nextSibling
+                    if (!contentNode) {
+                        return false
+                    }
                     blocks.push({
                         language: {
                             name: language,
